@@ -32,7 +32,7 @@ def get_number_of_tf_variables():
     return total_parameters
 
 
-def global_average_pool(net):
+def global_average_pool(net, keep_dims=True):
     shape = net.get_shape().as_list()
     if len(shape) == 5:
         dims = [2, 3, 4]
@@ -41,7 +41,7 @@ def global_average_pool(net):
     else:
         raise RuntimeError(
             "invalid number of dimensions for global_average_pool")
-    return tf.reduce_mean(net, dims, keep_dims=True,
+    return tf.reduce_mean(net, dims, keep_dims=keep_dims,
                           name='global_avg_pool')
 
 
@@ -146,6 +146,7 @@ def crop_spatial_temporal(fmaps_in, shape):
             shape[4],
         ]
 
+    size = [s if s is not None else -1 for s in size]
     fmaps = tf.slice(fmaps_in, offset, size)
 
     if in_is_4d and not out_is_4d:

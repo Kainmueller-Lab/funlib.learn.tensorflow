@@ -96,6 +96,8 @@ def conv4d(
         "kernel size should be an integer or a 4D tuple, not %s" % kernel_size)
     if isinstance(strides, int):
         strides = (strides,)*4
+    # assert strides == (1, 1, 1, 1), (
+    #     "Strides other than 1 not yet implemented")
     assert data_format == 'channels_first', (
         "Data format other than 'channels_first' not yet implemented")
     if isinstance(dilation_rate, int):

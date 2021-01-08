@@ -15,6 +15,8 @@ def conv(fmaps_in,
          activation='relu',
          padding='valid',
          use_bias=True,
+         use_dropout=False,
+         is_training=None,
          strides=1,
          name='conv',
          fov=(1, 1, 1),
@@ -110,8 +112,14 @@ def conv(fmaps_in,
         activation=activation,
         name=name)
     logger.info("%s", fmaps)
-
     out_shape = tuple(fmaps.get_shape().as_list())
+
+    if use_dropout:
+        shape = fmaps.get_shape().as_list()
+        shape[2:] = [1] * (len(out_shape)-2)
+        fmaps = tf.layers.dropout(
+            fmaps, rate=0.1, noise_shape=shape, training=is_training)
+        logger.info("%s", fmaps)
 
     # eliminate t dimension if length is 1
     if len(out_shape) == 6:
@@ -190,7 +198,7 @@ def conv_pass(
 
     for i, kernel_size in enumerate(kernel_sizes):
         fmaps, fov = conv(fmaps, num_fmaps, kernel_size,
-                          activation=activation,
+                          activation=conv_activation,
                           padding=padding,
                           use_bias=use_bias,
                           name=name + "_%i" % i,
@@ -230,6 +238,7 @@ def basic_res_block(fmaps_in,
                     padding='same',
                     strides=1,
                     is_training=None,
+                    use_dropout=False,
                     use_batchnorm=False,
                     is_first_block=False,
                     name='basic_res_block',
@@ -277,9 +286,11 @@ def basic_res_block(fmaps_in,
         fmaps, fov = conv(fmaps,
                           num_fmaps if i == 0 else num_fmaps_out,
                           kernel_size,
-                          activation=activation,
+                          activation=conv_activation,
                           padding=padding,
                           use_bias=use_bias,
+                          use_dropout=use_dropout,
+                          is_training=is_training,
                           # strides=strides if i == 0 else 1,
                           strides=strides if i == 1 else 1,
                           name=name + "_%i" % i,
@@ -295,6 +306,7 @@ def bottleneck_res_block(fmaps_in,
                          padding='same',
                          strides=1,
                          is_training=None,
+                         use_dropout=False,
                          use_batchnorm=False,
                          is_first_block=False,
                          name='bottleneck_res_block',
@@ -361,7 +373,7 @@ def bottleneck_res_block(fmaps_in,
 
     fmaps, fov = conv(
         fmaps, num_fmaps, 1,
-        activation=activation,
+        activation=conv_activation,
         padding=padding,
         use_bias=use_bias,
         strides=1,
@@ -382,9 +394,11 @@ def bottleneck_res_block(fmaps_in,
         logger.info("%s", fmaps)
 
     fmaps, fov = conv(fmaps, num_fmaps, 3,
-                      activation=activation,
+                      activation=conv_activation,
                       padding=padding,
                       use_bias=use_bias,
+                      use_dropout=use_dropout,
+                      is_training=is_training,
                       strides=strides,
                       name=name + "_conv",
                       fov=fov, voxel_size=voxel_size,)
@@ -403,7 +417,7 @@ def bottleneck_res_block(fmaps_in,
         logger.info("%s", fmaps)
 
     fmaps, fov = conv(fmaps, num_fmaps_out, 1,
-                      activation=activation,
+                      activation=conv_activation,
                       padding=padding,
                       use_bias=use_bias,
                       strides=1,
@@ -461,6 +475,7 @@ def downsample(
             "Input shape %s is not evenly divisible by downsample factor %s." %
             (in_shape[2:], factors))
 
+    logger.info("ds1 %s %s", fmaps_in, pool_op)
     fmaps = pool_op(
         fmaps_in,
         pool_size=factors[-num_dims:],
@@ -469,6 +484,7 @@ def downsample(
         data_format='channels_first',
         name=name,
     )
+    logger.info("ds %s", fmaps)
 
     if is_4d:
         out_shape = fmaps.get_shape().as_list()

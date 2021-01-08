@@ -9,6 +9,7 @@ from .layers import (conv,
                      bottleneck_res_block,
                      downsample)
 from .utils import (add_summaries,
+                    crop_spatial_temporal,
                     get_number_of_tf_variables,
                     global_average_pool)
 
@@ -22,6 +23,7 @@ def block_rn_v2(net, num_fmaps, num_fmaps_out,
                 use_batchnorm=False,
                 is_first_block=False,
                 use_bottleneck=True,
+                use_dropout=False,
                 conv_shortcut=False,
                 make_iso=False,
                 merge_time_voxel_size=None,
@@ -116,11 +118,15 @@ def block_rn_v2(net, num_fmaps, num_fmaps_out,
                         padding=padding,
                         strides=strides,
                         is_training=is_training,
+                        use_dropout=use_dropout,
                         use_batchnorm=use_batchnorm,
                         is_first_block=is_first_block,
                         name=name,
                         fov=fov, voxel_size=voxel_size)
 
+    shortcut = crop_spatial_temporal(shortcut,
+                                     net.get_shape().as_list())
+    logger.info("%s", net)
     net = tf.add(net, shortcut, name=name + '_out')
     logger.info("%s", net)
 
@@ -134,6 +140,7 @@ def stack_rn_v2(net, num_fmaps, num_blocks,
                 use_batchnorm=False,
                 is_first_block=False,
                 use_bottleneck=False,
+                use_dropout=False,
                 make_iso=False,
                 merge_time_voxel_size=None,
                 name=None,
@@ -179,8 +186,11 @@ def stack_rn_v2(net, num_fmaps, num_blocks,
         net, num_fmaps, num_fmaps_out,
         activation=activation, padding=padding,
         # strides=strides_first,
-        is_training=is_training, use_batchnorm=use_batchnorm,
-        is_first_block=is_first_block, use_bottleneck=use_bottleneck,
+        is_training=is_training,
+        use_batchnorm=use_batchnorm,
+        is_first_block=is_first_block,
+        use_bottleneck=use_bottleneck,
+        use_dropout=use_dropout,
         conv_shortcut=True,
         make_iso=make_iso,
         merge_time_voxel_size=merge_time_voxel_size,
@@ -190,9 +200,12 @@ def stack_rn_v2(net, num_fmaps, num_blocks,
     for i in range(2, num_blocks):
             net, fov, voxel_size = block_rn_v2(
                 net, num_fmaps, num_fmaps_out,
-                activation=activation, padding=padding,
-                is_training=is_training, use_batchnorm=use_batchnorm,
+                activation=activation,
+                padding=padding,
+                is_training=is_training,
+                use_batchnorm=use_batchnorm,
                 use_bottleneck=use_bottleneck,
+                use_dropout=use_dropout,
                 make_iso=make_iso,
                 merge_time_voxel_size=merge_time_voxel_size,
                 name=name + '_block' + str(i),
@@ -203,8 +216,10 @@ def stack_rn_v2(net, num_fmaps, num_blocks,
         activation=activation, padding=padding,
         # strides=strides_last,
         strides=stride1,
-        is_training=is_training, use_batchnorm=use_batchnorm,
+        is_training=is_training,
+        use_batchnorm=use_batchnorm,
         use_bottleneck=use_bottleneck,
+        use_dropout=use_dropout,
         make_iso=make_iso,
         merge_time_voxel_size=merge_time_voxel_size,
         name=name + '_block' + str(num_blocks),
@@ -221,11 +236,13 @@ def resnet(fmaps_in,
            use_bottleneck=None,
            activation='relu',
            padding='same',
+           num_fmaps=[64, 128, 256, 512],
            make_iso=False,
            merge_time_voxel_size=None,
            is_training=None,
            use_batchnorm=False,
            use_conv4d=False,
+           use_dropout=False,
            voxel_size=(1, 1, 1)):
     ''' Create a ResNet:
     '''
@@ -234,7 +251,8 @@ def resnet(fmaps_in,
 
 
     def stack_fn(net, fov, voxel_size):
-        num_fmaps = [64, 128, 256, 512]
+        # num_fmaps = [16, 32, 64, 96]
+        # num_fmaps = [64, 128, 256, 512]
         for i, nb in enumerate(num_blocks):
             is_first_block = i == 0
             is_last_block = i == (len(num_blocks) - 1)
@@ -247,6 +265,7 @@ def resnet(fmaps_in,
                 use_batchnorm=use_batchnorm,
                 is_first_block=is_first_block,
                 use_bottleneck=use_bottleneck,
+                use_dropout=use_dropout,
                 make_iso=make_iso,
                 merge_time_voxel_size=merge_time_voxel_size,
                 name='stack' + str(i+1),

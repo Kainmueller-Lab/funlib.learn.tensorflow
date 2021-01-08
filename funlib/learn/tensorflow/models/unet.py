@@ -276,23 +276,24 @@ def unet(
             logger.info(prefix + "g_out_upsampled: %s",
                         g_out_upsampled.shape)
 
-            # ensure translation equivariance with stride of product of
-            # previous downsample factors
-            factor_product = None
-            for factor in downsample_factors[layer:]:
-                if factor_product is None:
-                    factor_product = list(factor)
-                else:
-                    factor_product = list(
-                        f*ff
-                        for f, ff in zip(factor, factor_product))
-            g_out_upsampled = crop_to_factor(
-                g_out_upsampled,
-                factor=factor_product,
-                kernel_sizes=kernel_size_up[layer])
+            if layer == 0:
+                # ensure translation equivariance with stride of product of
+                # previous downsample factors
+                factor_product = None
+                for factor in downsample_factors[layer:]:
+                    if factor_product is None:
+                        factor_product = list(factor)
+                    else:
+                        factor_product = list(
+                            f*ff
+                            for f, ff in zip(factor, factor_product))
+                g_out_upsampled = crop_to_factor(
+                    g_out_upsampled,
+                    factor=factor_product,
+                    kernel_sizes=kernel_size_up[layer])
 
-            logger.info(prefix + "g_out_upsampled_cropped: %s",
-                        g_out_upsampled.shape)
+                logger.info(prefix + "g_out_upsampled_cropped: %s",
+                            g_out_upsampled.shape)
 
             # copy-crop
             f_left_cropped = crop_spatial_temporal(

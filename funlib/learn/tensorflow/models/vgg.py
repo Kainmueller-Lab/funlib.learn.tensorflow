@@ -147,10 +147,15 @@ def vgg(fmaps_in,
 
         shape = net.get_shape().as_list()
         factors = downsample_factors[i]
-        if make_iso and isinstance(factors, int) \
-           and factors > 1 and shape[-3] * 2 <= shape[-1]:
-            factors = [factors] * (len(shape)-2)
-            factors[0] = 1
+        # if make_iso and len(shape) > 4 and \
+        #    strides[-1] > 1 and shape[-3] * 2 <= shape[-1]:
+        #     strides[-3] = 1
+
+        if make_iso:
+            if isinstance(factors, int):
+                factors = [factors] * (len(shape)-2)
+            if factors[-1] > 1 and shape[-3] * 2 <= shape[-1]:
+                factors[0] = 1
 
         net, voxel_size = downsample(
             net,
@@ -202,6 +207,7 @@ def vgg(fmaps_in,
                     fov=fov, voxel_size=voxel_size)
 
     net = tf.reshape(net, shape=(tf.shape(net)[0], num_classes))
+    # net = tf.reduce_sum(net, [2,3,4])
     logger.info("%s", net)
 
     num_var_end = get_number_of_tf_variables()
